@@ -9,8 +9,8 @@ app.get('/', (req, res) => {
 
 app.get('/create', async (req, res) => {
     let createduser = await userModel.create({
-        name: "akbar",
-        username: "ak240",
+        name: "vivek",
+        username: "vivek",
         email: "akbar@gmail.com"
     })
     res.send(createduser);
@@ -22,12 +22,12 @@ app.get('/read', async (req, res) => {
 })
 
 app.get('/update', async(req, res) => {
-    let updateduser = await userModel.findOneAndUpdate({username: "ak240"}, {name: "ArzoRaza"}, {new: true});
+    let updateduser = await userModel.findOneAndUpdate({username: "ak240"}, {name: "vivekRaj"}, {new: true});
     res.send(updateduser);
 });
 
 app.get('/delete', async(req, res) => {
-    let users = await userModel.findOneAndDelete({username: "ak240"});
+    let users = await userModel.findOneAndDelete({name: "vivekRaj"});
     res.send(users);
 });
 
