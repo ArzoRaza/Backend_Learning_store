@@ -12,4 +12,5 @@ const postSchema = mongoose.Schema({
     }
 })
 
+//Here it's line exports this file with the help of module.exports  
 module.exports = mongoose.model('posts', postSchema);
