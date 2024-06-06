@@ -20,8 +20,8 @@ app.get('/login', (req, res) => {
 });
 
 app.get('/profile', isLoggedIn, async (req, res) => {
-    await userModel.findOne({email: req.user.email});
-    res.render("profile");
+    let user = await userModel.findOne({email: req.user.email});
+    res.render("profile", {user});
 });
 
 app.post('/register', async (req, res) => {
