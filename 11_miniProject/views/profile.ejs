@@ -26,10 +26,11 @@
             <% user.posts.reverse().forEach(function(post){ %>
                 <div class="post w-1/3 p-4 rounded-md border-[1px] border-zinc-600 bg-transparent bg-zinc-800">
                     <h4 class="text-yellow-400" > <%= user.username%> </h4>
-                    <p class="text-sm tracking-tight "> <%= post.content %> </p>
+                    <p class="text-sm tracking-tight"> <%= post.content %> </p>
+                    <small class="mt-2 inline-block"><%= post.likes.length %> likes</small>
     
                     <div class="btns flex gap-36 mt-5">
-                        <a class="text-blue-500" href="">Like</a>
+                        <a class="text-blue-500" href="/like/<%= post._id %>">Like</a>
                         <a class="text-zinc-500" href="">edit</a>
                     </div>
                 </div>
