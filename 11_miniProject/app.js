@@ -9,13 +9,15 @@ const crypto = require("crypto");
 const path = require("path");
 const multerconfig = require("./utils/multerconfig");
 
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+
 app.set("view engine", "ejs");
 app.use(express.json());
-app.use(express.urlencoded({ extended: true}));
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-
 app.get('/', (req, res) => {
+    res.send("Welcome to the home page!");
 });
 
 app.get('/login', (req, res) => {
@@ -23,102 +25,129 @@ app.get('/login', (req, res) => {
 });
 
 app.get('/profile', isLoggedIn, async (req, res) => {
-    let user = await userModel.findOne({email: req.user.email}).populate("posts");
-    res.render("profile", {user});
+    try {
+        let user = await userModel.findOne({ email: req.user.email }).populate("posts");
+        res.render("profile", { user });
+    } catch (error) {
+        res.status(500).send("Error fetching profile data");
+    }
 });
 
 app.get("/like/:id", isLoggedIn, async (req, res) => {
-    let post = await postModel.findOne({_id: req.params.id}).populate("user");
+    try {
+        let post = await postModel.findOne({ _id: req.params.id }).populate("user");
 
-    if(post.likes.indexOf(req.user.userid)=== -1) {
-        post.likes.push(req.user.userid);
+        if (post.likes.indexOf(req.user.userid) === -1) {
+            post.likes.push(req.user.userid);
+        } else {
+            post.likes.splice(post.likes.indexOf(req.user.userid), 1);
+        }
+
+        await post.save();
+        res.redirect("/profile");
+    } catch (error) {
+        res.status(500).send("Error liking post");
     }
-    else{
-        post.likes.splice(post.likes.indexOf(req.user.userid), 1);
-    }
-    
-    await post.save();
-    res.redirect("/profile");
 });
 
 app.get("/edit/:id", isLoggedIn, async (req, res) => {
-    let post = await postModel.findOne({_id: req.params.id}).populate("user");
-
-    res.render("edit", {post})
+    try {
+        let post = await postModel.findOne({ _id: req.params.id }).populate("user");
+        res.render("edit", { post });
+    } catch (error) {
+        res.status(500).send("Error fetching post for edit");
+    }
 });
 
 app.post("/update/:id", isLoggedIn, async (req, res) => {
-    let post = await postModel.findOneAndUpdate({_id: req.params.id}, {content: req.body.content});
-
-    res.redirect("/profile");
+    try {
+        await postModel.findOneAndUpdate({ _id: req.params.id }, { content: req.body.content });
+        res.redirect("/profile");
+    } catch (error) {
+        res.status(500).send("Error updating post");
+    }
 });
 
 app.post('/post', isLoggedIn, async (req, res) => {
-    let user = await userModel.findOne({email: req.user.email});
-    let {content} = req.body;
+    try {
+        let user = await userModel.findOne({ email: req.user.email });
+        let { content } = req.body;
 
-    let post = await postModel.create({
-        user: user._id,
-        content
-    });
+        let post = await postModel.create({
+            user: user._id,
+            content
+        });
 
-    user.posts.push(post._id);
-    await user.save();
-    res.redirect("/profile")
+        user.posts.push(post._id);
+        await user.save();
+        res.redirect("/profile");
+    } catch (error) {
+        res.status(500).send("Error creating post");
+    }
 });
 
 app.post('/register', async (req, res) => {
-    let {email, password, username, name, age} = req.body;
-    
-    let user = await userModel.findOne({email});
-    if(user) return res.status(500).send("user exists");
-    
-    bcrypt.genSalt(10, (err, salt) => {
-        bcrypt.hash(password, salt, async (err, hash) => {
-            let user = await userModel.create({
-                username,
-                email,
-                age,
-                name,
-                password: hash
-            });
-            
-            let token = jwt.sign({email: email, userid: user._id}, "shhhh");
-            res.cookie("token", token);
-            res.send("registerd")
-        })
-    })
+    try {
+        let { email, password, username, name, age } = req.body;
+
+        let existingUser = await userModel.findOne({ email });
+        if (existingUser) return res.status(400).send("User already exists");
+
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(password, salt);
+
+        let user = await userModel.create({
+            username,
+            email,
+            age,
+            name,
+            password: hash
+        });
+
+        let token = jwt.sign({ email: user.email, userid: user._id }, JWT_SECRET);
+        res.cookie("token", token, { httpOnly: true });
+        res.send("Registered");
+    } catch (error) {
+        res.status(500).send("Error registering user");
+    }
 });
 
 app.post('/login', async (req, res) => {
-    let {email, password} = req.body;
-    
-    let user = await userModel.findOne({email});
-    if(!user) return res.status(500).send("Something went wrong");
-    
-    bcrypt.compare(password, user.password, function( err, result){
-        if(result) {
-            let token = jwt.sign({email: email, userid: user._id}, "shhhh");
-            res.cookie("token", token);
-            res.status(200).redirect("/profile");
-        }
-        else res.redirect("/login");
-    })
+    try {
+        let { email, password } = req.body;
+
+        let user = await userModel.findOne({ email });
+        if (!user) return res.status(400).send("Invalid email or password");
+
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) return res.status(400).send("Invalid email or password");
+
+        let token = jwt.sign({ email: user.email, userid: user._id }, JWT_SECRET);
+        res.cookie("token", token, { httpOnly: true });
+        res.status(200).redirect("/profile");
+    } catch (error) {
+        res.status(500).send("Error logging in");
+    }
 });
 
 app.get('/logout', (req, res) => {
-    res.cookie("token", "");
+    res.cookie("token", "", { httpOnly: true, expires: new Date(0) });
     res.redirect("/login");
 });
 
-function isLoggedIn(req, res, next){
-    if(req.cookies.token === "") res.redirect("/login");
-    else{
-        let data = jwt.verify(req.cookies.token, "shhhh" )
+function isLoggedIn(req, res, next) {
+    const token = req.cookies.token;
+    if (!token) return res.redirect("/login");
+
+    try {
+        const data = jwt.verify(token, JWT_SECRET);
         req.user = data;
         next();
+    } catch {
+        return res.redirect("/login");
     }
 }
 
-app.listen(3000);
-
+app.listen(3000, () => {
+    console.log("Server running on port 3000");
+});
