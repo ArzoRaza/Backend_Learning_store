@@ -21,25 +21,13 @@ const storage = multer.diskStorage({
         crypto.randomBytes(12, function (err, bytes){
             const fn = bytes.toString("hex") + path.extname(file.originalname)
             cb(null, fn)
-        })
+        });
     }
-  })
-  
-  const upload = multer({ storage: storage })
+  });
 
+const upload = multer({ storage: storage })
 
 app.get('/', (req, res) => {
-});
-
-app.get('/test', (req, res) => {
-    res.render("test");
-});
-
-app.post("/upload", upload.single("image") , (req, res) => {
-    console.log(req.file);
-})
-app.get('/', (req, res) => {
-    res.render("index");
 });
 
 app.get('/login', (req, res) => {
