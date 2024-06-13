@@ -1,13 +1,13 @@
 const express = require('express');
 const app = express();
 const userModel = require("./models/user");
-const postModel = require("./models/post")
+const postModel = require("./models/post");
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require("crypto");
 const path = require("path");
-const multerconfig = require("./utils/multerconfig");
+const upload = require("./config/multerconfig"); // Correct import path
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -17,15 +17,40 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
-app.get('/', (req, res) => {
+// Middleware for authentication
+function isLoggedIn(req, res, next) {
+    const token = req.cookies.token;
+    if (!token) return res.redirect("/login");
+
+    try {
+        const data = jwt.verify(token, JWT_SECRET);
+        req.user = data;
+        next();
+    } catch {
+        return res.redirect("/login");
+    }
+}
+
+app.get("/", (req, res) => {
     res.render("index");
 });
 
-app.get('/login', (req, res) => {
+app.get("/profile/upload", (req, res) => {
+    res.render("profileUpload");
+});
+
+app.post("/upload", isLoggedIn, upload.single('image'), async(req, res) => {
+    let user = await userModel.findOne({email: req.user.email});
+    user.profilephoto = req.file.filename;
+    await user.save()
+    res.redirect("/profile")
+});
+
+app.get("/login", (req, res) => {
     res.render("login");
 });
 
-app.get('/profile', isLoggedIn, async (req, res) => {
+app.get("/profile", isLoggedIn, async (req, res) => {
     try {
         let user = await userModel.findOne({ email: req.user.email }).populate("posts");
         res.render("profile", { user });
@@ -69,7 +94,7 @@ app.post("/update/:id", isLoggedIn, async (req, res) => {
     }
 });
 
-app.post('/post', isLoggedIn, async (req, res) => {
+app.post("/post", isLoggedIn, async (req, res) => {
     try {
         let user = await userModel.findOne({ email: req.user.email });
         let { content } = req.body;
@@ -87,7 +112,7 @@ app.post('/post', isLoggedIn, async (req, res) => {
     }
 });
 
-app.post('/register', async (req, res) => {
+app.post("/register", async (req, res) => {
     try {
         let { email, password, username, name, age } = req.body;
 
@@ -113,7 +138,7 @@ app.post('/register', async (req, res) => {
     }
 });
 
-app.post('/login', async (req, res) => {
+app.post("/login", async (req, res) => {
     try {
         let { email, password } = req.body;
 
@@ -131,23 +156,10 @@ app.post('/login', async (req, res) => {
     }
 });
 
-app.get('/logout', (req, res) => {
+app.get("/logout", (req, res) => {
     res.cookie("token", "", { httpOnly: true, expires: new Date(0) });
     res.redirect("/login");
 });
-
-function isLoggedIn(req, res, next) {
-    const token = req.cookies.token;
-    if (!token) return res.redirect("/login");
-
-    try {
-        const data = jwt.verify(token, JWT_SECRET);
-        req.user = data;
-        next();
-    } catch {
-        return res.redirect("/login");
-    }
-}
 
 app.listen(3000, () => {
     console.log("Server running on port 3000");
