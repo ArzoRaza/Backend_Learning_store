@@ -162,5 +162,4 @@ app.get("/logout", (req, res) => {
 });
 
 app.listen(3000, () => {
-    console.log("port is three thousand ");
 });
