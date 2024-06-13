@@ -15,9 +15,10 @@ app.set("view engine", "ejs");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(express.static(path.join(__dirname, "public")));
 
 app.get('/', (req, res) => {
-    res.send("Welcome to the home page!");
+    res.render("index");
 });
 
 app.get('/login', (req, res) => {
@@ -106,7 +107,7 @@ app.post('/register', async (req, res) => {
 
         let token = jwt.sign({ email: user.email, userid: user._id }, JWT_SECRET);
         res.cookie("token", token, { httpOnly: true });
-        res.send("Registered");
+        res.send("Account Registered");
     } catch (error) {
         res.status(500).send("Error registering user");
     }
